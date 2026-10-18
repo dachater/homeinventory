@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchCategories, fetchItems, fetchLocations, fetchTags } from "@/lib/data";
 import { errorMessage } from "@/lib/format";
-import { childrenByParent, descendantIds, locationPath } from "@/lib/tree";
+import { archivedIds, childrenByParent, descendantIds, locationPath } from "@/lib/tree";
 import type { Category, Household, Item, Location, Selection, Tag } from "@/lib/types";
 import ItemDetail from "./ItemDetail";
 import ItemForm from "./ItemForm";
@@ -22,6 +22,10 @@ export type InventoryData = {
   children: Map<string | null, Location[]>;
   categoryById: Map<string, Category>;
   tagById: Map<string, Tag>;
+  // Locations that are archived, directly or because a parent is.
+  archived: Set<string>;
+  // Items not in an archived location; what "All items", categories, tags and search show.
+  activeItems: Item[];
 };
 
 type Pane = "sidebar" | "list" | "detail";
@@ -56,6 +60,7 @@ export default function Inventory({
   const [selection, setSelection] = useState<Selection>({ kind: "all" });
   const [includeSub, setIncludeSub] = useState(true);
   const [query, setQuery] = useState("");
+  const [searchArchived, setSearchArchived] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [pane, setPane] = useState<Pane>("sidebar");
 
@@ -96,20 +101,23 @@ export default function Inventory({
     return () => document.removeEventListener("visibilitychange", onFocus);
   }, [reload]);
 
-  const data: InventoryData = useMemo(
-    () => ({
+  const data: InventoryData = useMemo(() => {
+    const locationById = new Map(locations.map((l) => [l.id, l]));
+    const archived = archivedIds(locations, locationById);
+    return {
       household,
       locations,
       categories,
       tags,
       items,
-      locationById: new Map(locations.map((l) => [l.id, l])),
+      locationById,
       children: childrenByParent(locations),
       categoryById: new Map(categories.map((c) => [c.id, c])),
       tagById: new Map(tags.map((t) => [t.id, t])),
-    }),
-    [household, locations, categories, tags, items],
-  );
+      archived,
+      activeItems: archived.size ? items.filter((i) => !i.location_id || !archived.has(i.location_id)) : items,
+    };
+  }, [household, locations, categories, tags, items]);
 
   const searching = query.trim().length > 0;
 
@@ -134,7 +142,7 @@ export default function Inventory({
           .join(" ")
           .toLowerCase();
       return {
-        listItems: items.filter((it) => {
+        listItems: (searchArchived ? items : data.activeItems).filter((it) => {
           const h = hay(it);
           return words.every((w) => h.includes(w));
         }),
@@ -143,7 +151,7 @@ export default function Inventory({
     }
     switch (selection.kind) {
       case "all":
-        return { listItems: items, title: "All items" };
+        return { listItems: data.activeItems, title: "All items" };
       case "location": {
         if (selection.id === null) {
           return { listItems: items.filter((i) => !i.location_id), title: "(unspecified)" };
@@ -156,16 +164,16 @@ export default function Inventory({
       }
       case "category":
         return {
-          listItems: items.filter((i) => i.category_id === selection.id),
+          listItems: data.activeItems.filter((i) => i.category_id === selection.id),
           title: selection.id ? (data.categoryById.get(selection.id)?.name ?? "Category") : "(no category)",
         };
       case "tag":
         return {
-          listItems: items.filter((i) => i.item_tags.some((t) => t.tag_id === selection.id)),
+          listItems: data.activeItems.filter((i) => i.item_tags.some((t) => t.tag_id === selection.id)),
           title: data.tagById.get(selection.id)?.name ?? "Tag",
         };
     }
-  }, [searching, query, selection, includeSub, items, data]);
+  }, [searching, query, searchArchived, selection, includeSub, items, data]);
 
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
 
@@ -231,6 +239,8 @@ export default function Inventory({
           onEditLocation={currentLocation ? () => setLocationForm({ location: currentLocation, parentId: currentLocation.parent_id }) : undefined}
           includeSub={includeSub}
           onIncludeSub={selection.kind === "location" && selection.id && !searching ? setIncludeSub : undefined}
+          searchArchived={searchArchived}
+          onSearchArchived={searching && data.archived.size > 0 ? setSearchArchived : undefined}
           onChanged={() => reload({ items: true })}
         />
       </div>
@@ -293,6 +303,12 @@ export default function Inventory({
             await reload({ locations: true, items: true });
             select(parentId ? { kind: "location", id: parentId } : { kind: "all" });
             setPane("sidebar");
+          }}
+          onArchived={async (id) => {
+            setLocationForm(null);
+            await reload({ locations: true });
+            setMode("locations");
+            select({ kind: "location", id });
           }}
         />
       )}

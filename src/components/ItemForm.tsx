@@ -138,10 +138,13 @@ export default function ItemForm({
             <label className="label" htmlFor="i-loc">Location</label>
             <select id="i-loc" className="input" value={f.location_id} onChange={set("location_id")}>
               <option value="">(unspecified)</option>
-              {flattenTree(data.children).map(({ loc, depth }) => (
+              {flattenTree(data.children)
+                .filter(({ loc }) => !data.archived.has(loc.id) || loc.id === initial?.location_id)
+                .map(({ loc, depth }) => (
                 <option key={loc.id} value={loc.id}>
                   {"   ".repeat(depth)}
                   {loc.name}
+                  {data.archived.has(loc.id) && " (archived)"}
                 </option>
               ))}
             </select>

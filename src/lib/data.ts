@@ -103,6 +103,15 @@ export async function saveLocation(
   return row.id;
 }
 
+export async function setLocationArchived(id: string, archived: boolean) {
+  check(
+    await supabase
+      .from("locations")
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .eq("id", id),
+  );
+}
+
 // Items in the deleted location move up to its parent.
 export async function deleteLocation(loc: Location) {
   check(await supabase.from("items").update({ location_id: loc.parent_id }).eq("location_id", loc.id));

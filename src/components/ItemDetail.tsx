@@ -118,6 +118,7 @@ export default function ItemDetail({
                   <dd>
                     <button className="text-left text-accent hover:underline" onClick={() => onShowLocation(item.location_id)}>
                       {path || "(unspecified)"}
+                      {item.location_id && data.archived.has(item.location_id) && " (archived)"}
                     </button>
                   </dd>
                 </div>
