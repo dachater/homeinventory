@@ -10,6 +10,7 @@ export type Location = {
   parent_id: string | null;
   name: string;
   description: string | null;
+  archived_at: string | null;
 };
 
 export type Category = {

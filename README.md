@@ -6,6 +6,8 @@ Data lives in [Supabase](https://supabase.com); the web app is hosted on [Vercel
 ## Features
 
 - **Nested locations** (house → room → shelf → box) with item counts, plus an "(unspecified)" bucket
+- **Archive old locations** (e.g. a previous home): they and their items are hidden from everyday views
+  and search, kept in an "Archived" section, and can be restored at any time
 - **Items** with description, category, tags, quantity, value and currency per item, purchase date and store,
   brand, model, serial number, barcode and notes
 - **Photos, receipts and file attachments** per item (photos are shrunk before upload to save storage)
@@ -36,8 +38,8 @@ the app.
 1. Sign in at [supabase.com](https://supabase.com) and create a new project. Pick a region near you
    (e.g. Singapore `ap-southeast-1`).
 2. Apply the database schema, either way works:
-   - **Dashboard:** open *SQL Editor*, paste the contents of
-     `supabase/migrations/20261018000000_init.sql`, and run it.
+   - **Dashboard:** open *SQL Editor*, and paste and run each file in `supabase/migrations/` in
+     date order (oldest first).
    - **CLI:** `npx supabase login`, `npx supabase link --project-ref <your-project-ref>`, then
      `npx supabase db push`.
 3. In *Authentication → URL Configuration*, set **Site URL** to your Vercel address (e.g.

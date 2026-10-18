@@ -24,6 +24,8 @@ export default function ItemList({
   onEditLocation,
   includeSub,
   onIncludeSub,
+  searchArchived,
+  onSearchArchived,
   onChanged,
 }: {
   data: InventoryData;
@@ -38,6 +40,8 @@ export default function ItemList({
   onEditLocation?: () => void;
   includeSub: boolean;
   onIncludeSub?: (v: boolean) => void;
+  searchArchived: boolean;
+  onSearchArchived?: (v: boolean) => void;
   onChanged: () => Promise<void> | void;
 }) {
   const [sort, setSort] = useState<SortKey>("name");
@@ -92,6 +96,9 @@ export default function ItemList({
           <div className="min-w-0 flex-1 text-center md:text-left">
             <h2 className="flex items-center justify-center gap-1 truncate font-semibold md:justify-start">
               <span className="truncate">{title}</span>
+              {location && data.archived.has(location.id) && (
+                <span className="shrink-0 rounded bg-bg px-1.5 py-0.5 text-xs font-medium text-muted">Archived</span>
+              )}
               {onEditLocation && (
                 <button className="shrink-0 rounded p-1 text-muted hover:bg-bg" onClick={onEditLocation} aria-label="Edit location">
                   <PencilIcon className="h-3.5 w-3.5" />
@@ -120,6 +127,12 @@ export default function ItemList({
               Sub-locations
             </label>
           )}
+          {onSearchArchived && (
+            <label className="flex items-center gap-1 text-muted">
+              <input type="checkbox" checked={searchArchived} onChange={(e) => onSearchArchived(e.target.checked)} />
+              Include archived
+            </label>
+          )}
           <span className="flex-1" />
           <button
             className="rounded-md px-2 py-1 font-medium text-accent hover:bg-bg"
@@ -138,7 +151,10 @@ export default function ItemList({
           const active = selecting ? picked.has(it.id) : it.id === selectedId;
           // No need to repeat the location for items sitting directly in it.
           const path = showPaths && it.location_id !== (location?.id ?? undefined)
-            ? locationPath(it.location_id, data.locationById) || "(unspecified)"
+            ? (locationPath(it.location_id, data.locationById) || "(unspecified)") +
+              (it.location_id && data.archived.has(it.location_id) && !(location && data.archived.has(location.id))
+                ? " (archived)"
+                : "")
             : null;
           return (
             <li key={it.id}>
@@ -200,7 +216,7 @@ export default function ItemList({
           title={`Move ${pickedIds.length} item(s) to…`}
           options={[
             { id: "", label: "(unspecified)", depth: 0 },
-            ...flattenTree(data.children).map(({ loc, depth }) => ({ id: loc.id, label: loc.name, depth })),
+            ...flattenTree(data.children, data.archived).map(({ loc, depth }) => ({ id: loc.id, label: loc.name, depth })),
           ]}
           busy={busy}
           onClose={() => setBulk(null)}

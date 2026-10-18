@@ -40,11 +40,30 @@ export function descendantIds(id: string, children: Map<string | null, Location[
   return out;
 }
 
+// Locations that are archived themselves or sit inside an archived location.
+export function archivedIds(locations: Location[], byId: Map<string, Location>): Set<string> {
+  const out = new Set<string>();
+  for (const loc of locations) {
+    let cur: Location | undefined = loc;
+    let guard = 0;
+    while (cur && guard++ < 100) {
+      if (cur.archived_at) {
+        out.add(loc.id);
+        break;
+      }
+      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+    }
+  }
+  return out;
+}
+
 // Locations in tree order with their depth, for indented <select> options.
-export function flattenTree(children: Map<string | null, Location[]>) {
+// Locations in `skip` (and everything below them) are left out.
+export function flattenTree(children: Map<string | null, Location[]>, skip?: Set<string>) {
   const out: { loc: Location; depth: number }[] = [];
   const walk = (parent: string | null, depth: number) => {
     for (const loc of children.get(parent) ?? []) {
+      if (skip?.has(loc.id)) continue;
       out.push({ loc, depth });
       walk(loc.id, depth + 1);
     }

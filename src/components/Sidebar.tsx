@@ -41,8 +41,8 @@ export default function Sidebar({
     const direct = new Map<string | null, number>();
     const byCategory = new Map<string | null, number>();
     const byTag = new Map<string, number>();
-    for (const it of data.items) {
-      direct.set(it.location_id, (direct.get(it.location_id) ?? 0) + 1);
+    for (const it of data.items) direct.set(it.location_id, (direct.get(it.location_id) ?? 0) + 1);
+    for (const it of data.activeItems) {
       byCategory.set(it.category_id, (byCategory.get(it.category_id) ?? 0) + 1);
       for (const t of it.item_tags) byTag.set(t.tag_id, (byTag.get(t.tag_id) ?? 0) + 1);
     }
@@ -50,7 +50,12 @@ export default function Sidebar({
     const sum = (id: string): number => {
       if (total.has(id)) return total.get(id)!;
       total.set(id, 0); // guards against cycles
-      const n = (direct.get(id) ?? 0) + (data.children.get(id) ?? []).reduce((a, c) => a + sum(c.id), 0);
+      // An active location's count leaves out archived sub-locations.
+      const n =
+        (direct.get(id) ?? 0) +
+        (data.children.get(id) ?? [])
+          .filter((c) => data.archived.has(c.id) === data.archived.has(id))
+          .reduce((a, c) => a + sum(c.id), 0);
       total.set(id, n);
       return n;
     };
@@ -80,6 +85,17 @@ export default function Sidebar({
     }
     if (ancestors.some((id) => !open.has(id))) setOpen(new Set([...open, ...ancestors]));
   }
+
+  // Top of each archived branch: archived locations whose parent is still active.
+  const archivedRoots = useMemo(
+    () =>
+      data.locations
+        .filter((l) => l.archived_at && !(l.parent_id && data.archived.has(l.parent_id)))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    [data],
+  );
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const showArchive = archiveOpen || (!!selectedLocation && data.archived.has(selectedLocation));
 
   const isSel = (s: Selection) =>
     selection !== null &&
@@ -127,7 +143,7 @@ export default function Sidebar({
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         <Row
           label="All items"
-          count={data.items.length}
+          count={data.activeItems.length}
           selected={isSel({ kind: "all" })}
           onClick={() => onSelect({ kind: "all" })}
         />
@@ -152,6 +168,35 @@ export default function Sidebar({
               open={open}
               toggle={toggle}
             />
+            {archivedRoots.length > 0 && (
+              <div className="mt-3 border-t border-line pt-2">
+                <button
+                  className="flex w-full items-center gap-1 rounded-lg px-1 py-2 text-left text-xs font-semibold tracking-wide text-muted uppercase hover:bg-bg"
+                  onClick={() => setArchiveOpen(!showArchive)}
+                  aria-expanded={showArchive}
+                >
+                  <ChevronIcon className={`h-3.5 w-3.5 transition-transform ${showArchive ? "rotate-90" : ""}`} />
+                  Archived
+                  <span className="ml-auto pr-1 font-normal tabular-nums">{archivedRoots.length}</span>
+                </button>
+                {showArchive && (
+                  <LocationTree
+                    data={data}
+                    parentId={null}
+                    roots={archivedRoots}
+                    archivedView
+                    depth={0}
+                    counts={counts.location}
+                    isSelected={(id) => isSel({ kind: "location", id })}
+                    onSelect={(id) => onSelect({ kind: "location", id })}
+                    onAdd={onAddLocation}
+                    onEdit={onEditLocation}
+                    open={open}
+                    toggle={toggle}
+                  />
+                )}
+              </div>
+            )}
           </>
         )}
         {mode === "categories" && (
@@ -253,9 +298,15 @@ function LocationTree({
   onEdit,
   open,
   toggle,
+  roots,
+  archivedView = false,
 }: {
   data: InventoryData;
   parentId: string | null;
+  // Overrides the top-level list (used for the Archived section).
+  roots?: Location[];
+  // Inside the Archived section every location is shown and none can get new sub-locations.
+  archivedView?: boolean;
   depth: number;
   counts: Map<string, number>;
   isSelected: (id: string) => boolean;
@@ -265,10 +316,12 @@ function LocationTree({
   open: Set<string>;
   toggle: (id: string) => void;
 }) {
+  const visibleChildren = (id: string | null) =>
+    (data.children.get(id) ?? []).filter((c) => archivedView || !data.archived.has(c.id));
   return (
     <>
-      {(data.children.get(parentId) ?? []).map((loc) => {
-        const hasChildren = (data.children.get(loc.id) ?? []).length > 0;
+      {(roots ?? visibleChildren(parentId)).map((loc) => {
+        const hasChildren = visibleChildren(loc.id).length > 0;
         const expanded = open.has(loc.id);
         return (
           <div key={loc.id}>
@@ -292,9 +345,11 @@ function LocationTree({
               }
               actions={
                 <span className="flex shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                  <button className="rounded p-1.5 text-muted hover:bg-line" onClick={() => onAdd(loc.id)} aria-label={`Add location inside ${loc.name}`}>
-                    <PlusIcon className="h-3.5 w-3.5" />
-                  </button>
+                  {!archivedView && (
+                    <button className="rounded p-1.5 text-muted hover:bg-line" onClick={() => onAdd(loc.id)} aria-label={`Add location inside ${loc.name}`}>
+                      <PlusIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button className="rounded p-1.5 text-muted hover:bg-line" onClick={() => onEdit(loc)} aria-label={`Edit ${loc.name}`}>
                     <PencilIcon className="h-3.5 w-3.5" />
                   </button>
@@ -313,6 +368,7 @@ function LocationTree({
                 onEdit={onEdit}
                 open={open}
                 toggle={toggle}
+                archivedView={archivedView}
               />
             )}
           </div>
