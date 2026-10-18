@@ -1,6 +1,6 @@
 import type { Location } from "./types";
 
-export const PATH_SEPARATOR = " > ";
+export const PATH_SEPARATOR = " → ";
 
 export function childrenByParent(locations: Location[]) {
   const map = new Map<string | null, Location[]>();

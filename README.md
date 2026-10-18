@@ -65,12 +65,14 @@ the app.
 ## Importing from UnderMyRoof
 
 1. In UnderMyRoof, export your items to CSV.
-2. In this app open **Settings → Import / export**, choose the CSV file, check the column matches and the
-   preview, then **Import**.
-   - Nested locations are created from paths like `Taioma Close > Kitchen > Pantry`. Pick the separator
-     your export uses, or "Not nested".
-   - Values like `RM 1,050.50` are understood. Rows without a currency column use your default currency.
-   - Photos can't come across in a CSV; add them to items afterwards.
+2. In this app open **Settings → Import / export** and choose the file. UnderMyRoof's columns are matched
+   automatically; check the preview, then **Import**.
+   - Nested locations are created from paths like `Taioma Close → Under Bed → Box 3`.
+   - Placeholders such as `(unspecified)` and `(uncategorized)` are treated as blank.
+   - Prices like `MYR 673.00 (NZ$ 237.76)` import as RM 673.00. "Make" becomes Brand, and a condition
+     other than `(unspecified)` is added to the notes. Collections are not imported.
+   - Categories such as `Clothes → Dave` stay as a single category with that name.
+   - Photos can't come across in a CSV; add them to items afterwards. Empty locations aren't in the export.
 
 Running the import twice creates duplicate items, so import into an empty inventory or check first.
 

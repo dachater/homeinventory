@@ -18,7 +18,8 @@ export type ImportField =
   | "model"
   | "serial_number"
   | "barcode"
-  | "notes";
+  | "notes"
+  | "condition";
 
 export const IMPORT_FIELDS: { field: ImportField; label: string; guesses: string[] }[] = [
   { field: "name", label: "Name", guesses: ["name", "item", "item name", "title"] },
@@ -40,6 +41,7 @@ export const IMPORT_FIELDS: { field: ImportField; label: string; guesses: string
   { field: "serial_number", label: "Serial number", guesses: ["serial number", "serial", "serial no"] },
   { field: "barcode", label: "Barcode", guesses: ["barcode", "upc", "ean"] },
   { field: "notes", label: "Notes", guesses: ["notes", "note", "comments"] },
+  { field: "condition", label: "Condition (added to notes)", guesses: ["condition"] },
 ];
 
 export type Mapping = Partial<Record<ImportField, string>>;
@@ -64,9 +66,11 @@ export function parseCsv(text: string) {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-export function guessMapping(headers: string[]): Mapping {
+// Matches columns to fields by header name, ignoring columns with no data
+// (UnderMyRoof exports an empty "Value" column next to a filled "Price").
+export function guessMapping(headers: string[], rows: Record<string, string>[]): Mapping {
   const mapping: Mapping = {};
-  const used = new Set<string>();
+  const used = new Set(headers.filter((h) => !rows.some((r) => cell(r, h))));
   for (const { field, guesses } of IMPORT_FIELDS) {
     const hit = guesses
       .map((g) => headers.find((h) => !used.has(h) && norm(h) === g))
@@ -80,7 +84,7 @@ export function guessMapping(headers: string[]): Mapping {
 }
 
 export function guessLocationSeparator(values: string[]): string {
-  for (const sep of [">", "/", "\\", ":"]) {
+  for (const sep of ["→", ">", "/", "\\", ":"]) {
     if (values.some((v) => v.includes(sep))) return sep;
   }
   return ">";
@@ -90,8 +94,22 @@ export function guessTagSeparator(values: string[]): string {
   return values.some((v) => v.includes(";")) ? ";" : ",";
 }
 
+const CURRENCY_SYMBOLS: [string, string][] = [
+  ["NZ$", "NZD"], ["A$", "AUD"], ["US$", "USD"], ["S$", "SGD"], ["HK$", "HKD"],
+  ["RM", "MYR"], ["£", "GBP"], ["€", "EUR"], ["¥", "JPY"],
+];
+
+// The currency a price is written in, e.g. "MYR 673.00" or "NZ$ 40".
+export function parseCurrency(raw: string): string | null {
+  const s = raw.trim();
+  const code = s.match(/^([A-Z]{3})\b/);
+  if (code) return code[1];
+  return CURRENCY_SYMBOLS.find(([sym]) => s.startsWith(sym))?.[1] ?? null;
+}
+
+// Reads the first amount in the text, so "MYR 673.00 (NZ$ 237.76)" gives 673.
 export function parseMoney(raw: string): number | null {
-  const s = raw.replace(/[^\d.,-]/g, "");
+  const s = raw.match(/\d[\d.,]*/)?.[0] ?? "";
   if (!s) return null;
   // "1.234,56" style: comma is the decimal separator.
   const normalised = /,\d{1,2}$/.test(s) && !/\.\d{1,2}$/.test(s)
@@ -128,8 +146,12 @@ export function parseDate(raw: string, format: DateFormat): string | null {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+// UnderMyRoof fills blank fields with placeholders such as "(unspecified)".
+const PLACEHOLDER = /^\((unspecified|uncategorized|uncategorised|uncollected|none)\)$/i;
+
 function cell(row: Record<string, string>, col: string | undefined): string {
-  return col ? (row[col] ?? "").trim() : "";
+  const v = col ? (row[col] ?? "").trim() : "";
+  return PLACEHOLDER.test(v) ? "" : v;
 }
 
 export type ImportResult = {
@@ -222,7 +244,10 @@ export async function importRows(
     if (i % 50 === 0) onProgress(`Preparing row ${i + 1} of ${rows.length}…`);
     const locRaw = cell(row, mapping.location);
     const qty = parseInt(cell(row, mapping.quantity).replace(/[^\d]/g, ""), 10);
-    const currency = cell(row, mapping.currency).toUpperCase();
+    const priceRaw = cell(row, mapping.value);
+    const currency = (cell(row, mapping.currency) || parseCurrency(priceRaw) || "").toUpperCase();
+    const condition = cell(row, mapping.condition);
+    const notes = [cell(row, mapping.notes), condition && `Condition: ${condition}`].filter(Boolean).join("\n");
     const id = crypto.randomUUID();
     items.push({
       id,
@@ -232,7 +257,7 @@ export async function importRows(
       location_id: locRaw ? await locationFor(locRaw) : null,
       category_id: await categoryFor(cell(row, mapping.category)),
       quantity: Number.isFinite(qty) ? qty : 1,
-      value: parseMoney(cell(row, mapping.value)),
+      value: parseMoney(priceRaw),
       currency: /^[A-Z]{3}$/.test(currency) ? currency : opts.defaultCurrency,
       purchase_date: parseDate(cell(row, mapping.purchase_date), opts.dateFormat),
       purchased_from: cell(row, mapping.purchased_from) || null,
@@ -240,7 +265,7 @@ export async function importRows(
       model: cell(row, mapping.model) || null,
       serial_number: cell(row, mapping.serial_number) || null,
       barcode: cell(row, mapping.barcode) || null,
-      notes: cell(row, mapping.notes) || null,
+      notes: notes || null,
     });
     const tagNames = cell(row, mapping.tags)
       .split(opts.tagSeparator || ",")

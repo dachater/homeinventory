@@ -21,7 +21,7 @@ type Parsed = { fileName: string; headers: string[]; rows: Record<string, string
 export default function ImportCsv({ data, onImported }: { data: InventoryData; onImported: () => void }) {
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [mapping, setMapping] = useState<Mapping>({});
-  const [locSep, setLocSep] = useState(">");
+  const [locSep, setLocSep] = useState("→");
   const [tagSep, setTagSep] = useState(",");
   const [dateFormat, setDateFormat] = useState<DateFormat>("DMY");
   const [progress, setProgress] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function ImportCsv({ data, onImported }: { data: InventoryData; o
       setError(errors[0]?.message ?? "That file has no rows.");
       return;
     }
-    const m = guessMapping(headers);
+    const m = guessMapping(headers, rows);
     setParsed({ fileName: file.name, headers, rows });
     setMapping(m);
     if (m.location) setLocSep(guessLocationSeparator(rows.map((r) => r[m.location!] ?? "")));
@@ -114,6 +114,7 @@ export default function ImportCsv({ data, onImported }: { data: InventoryData; o
             <label className="text-sm">
               <span className="label">Location levels separated by</span>
               <select className="input py-1.5" value={locSep} onChange={(e) => setLocSep(e.target.value)}>
+                <option value="→">→ (Home → Kitchen)</option>
                 <option value=">">&gt; (Home &gt; Kitchen)</option>
                 <option value="/">/ (Home / Kitchen)</option>
                 <option value="\">\</option>
