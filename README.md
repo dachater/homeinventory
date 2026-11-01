@@ -12,6 +12,9 @@ Data lives in [Supabase](https://supabase.com); the web app is hosted on [Vercel
   brand, model, serial number, barcode and notes
 - **Photos, receipts and file attachments** per item (photos are shrunk before upload to save storage)
 - **Browse by location, category or tag**, and search across every field
+- **Box totals** (Boxes tab): counts boxes by their size tags, meaning any tag ending in "box", such as
+  "Small box". Shows the overall total, totals per size and per location, and can filter by another tag
+  (e.g. "Moving to Aster Hill"). Also flags items named like a box ("01 Carton") that have no size tag yet
 - **Bulk actions**: select several items to move, tag or delete them together
 - **Household sharing**: invite family members with a code; everyone sees the same inventory
 - **CSV import** with column matching (for your UnderMyRoof export) and **CSV export** for backups
