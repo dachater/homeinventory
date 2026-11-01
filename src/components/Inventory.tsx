@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchCategories, fetchItems, fetchLocations, fetchTags } from "@/lib/data";
+import { summariseBoxes } from "@/lib/boxes";
 import { errorMessage } from "@/lib/format";
 import { archivedIds, childrenByParent, descendantIds, locationPath } from "@/lib/tree";
 import type { Category, Household, Item, Location, Selection, Tag } from "@/lib/types";
@@ -61,6 +62,7 @@ export default function Inventory({
   const [includeSub, setIncludeSub] = useState(true);
   const [query, setQuery] = useState("");
   const [searchArchived, setSearchArchived] = useState(false);
+  const [boxFilterTag, setBoxFilterTag] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [pane, setPane] = useState<Pane>("sidebar");
 
@@ -172,8 +174,28 @@ export default function Inventory({
           listItems: data.activeItems.filter((i) => i.item_tags.some((t) => t.tag_id === selection.id)),
           title: data.tagById.get(selection.id)?.name ?? "Tag",
         };
+      case "boxes": {
+        const summary = summariseBoxes(data.activeItems, data.tags, data.locationById, boxFilterTag);
+        let list = selection.view === "missing" ? summary.missing : summary.boxes;
+        if (selection.view !== "all" && selection.view !== "missing") {
+          list = list.filter((i) => i.item_tags.some((t) => t.tag_id === selection.view));
+        }
+        if (selection.location !== undefined) list = list.filter((i) => i.location_id === selection.location);
+        const base =
+          selection.view === "all"
+            ? "All boxes"
+            : selection.view === "missing"
+              ? "Boxes missing a size"
+              : (data.tagById.get(selection.view)?.name ?? "Boxes");
+        const where =
+          selection.location === undefined
+            ? ""
+            : ` in ${selection.location ? (data.locationById.get(selection.location)?.name ?? "location") : "(unspecified)"}`;
+        const filter = boxFilterTag ? ` · ${data.tagById.get(boxFilterTag)?.name ?? ""}` : "";
+        return { listItems: list, title: base + where + filter };
+      }
     }
-  }, [searching, query, searchArchived, selection, includeSub, items, data]);
+  }, [searching, query, searchArchived, selection, includeSub, items, data, boxFilterTag]);
 
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
 
@@ -194,6 +216,13 @@ export default function Inventory({
       if (selection.kind === "location") preset.location_id = selection.id;
       if (selection.kind === "category") preset.category_id = selection.id;
       if (selection.kind === "tag") preset.item_tags = [{ tag_id: selection.id }];
+      if (selection.kind === "boxes") {
+        const tagIds = [selection.view, boxFilterTag].filter(
+          (id): id is string => !!id && id !== "all" && id !== "missing",
+        );
+        preset.item_tags = tagIds.map((tag_id) => ({ tag_id }));
+        if (selection.location !== undefined) preset.location_id = selection.location;
+      }
     }
     setItemForm({ id: null, preset });
   }
@@ -222,6 +251,8 @@ export default function Inventory({
           onAddLocation={(parentId) => setLocationForm({ location: null, parentId })}
           onEditLocation={(loc) => setLocationForm({ location: loc, parentId: loc.parent_id })}
           onSettings={() => setSettingsOpen(true)}
+          boxFilterTag={boxFilterTag}
+          onBoxFilterTag={setBoxFilterTag}
         />
       </div>
 

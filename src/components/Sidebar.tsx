@@ -3,14 +3,16 @@
 import { useMemo, useState } from "react";
 import type { Location, Selection } from "@/lib/types";
 import { ChevronIcon, GearIcon, PencilIcon, PlusIcon, SearchIcon } from "./icons";
+import BoxesPanel from "./BoxesPanel";
 import type { InventoryData } from "./Inventory";
 
-export type SidebarMode = "locations" | "categories" | "tags";
+export type SidebarMode = "locations" | "categories" | "tags" | "boxes";
 
 const MODES: { mode: SidebarMode; label: string }[] = [
   { mode: "locations", label: "Locations" },
   { mode: "categories", label: "Categories" },
   { mode: "tags", label: "Tags" },
+  { mode: "boxes", label: "Boxes" },
 ];
 
 export default function Sidebar({
@@ -24,6 +26,8 @@ export default function Sidebar({
   onAddLocation,
   onEditLocation,
   onSettings,
+  boxFilterTag,
+  onBoxFilterTag,
 }: {
   data: InventoryData;
   mode: SidebarMode;
@@ -35,6 +39,8 @@ export default function Sidebar({
   onAddLocation: (parentId: string | null) => void;
   onEditLocation: (loc: Location) => void;
   onSettings: () => void;
+  boxFilterTag: string | null;
+  onBoxFilterTag: (id: string | null) => void;
 }) {
   // Item counts per location (including sub-locations), category and tag.
   const counts = useMemo(() => {
@@ -128,11 +134,11 @@ export default function Sidebar({
         </label>
       </div>
 
-      <div className="mx-4 mb-2 grid grid-cols-3 rounded-lg bg-bg p-0.5 text-sm">
+      <div className="mx-4 mb-2 grid grid-cols-4 rounded-lg bg-bg p-0.5 text-sm">
         {MODES.map((m) => (
           <button
             key={m.mode}
-            className={`rounded-md py-1.5 font-medium ${mode === m.mode ? "bg-accent text-white shadow-sm" : "text-muted"}`}
+            className={`truncate rounded-md px-0.5 py-1.5 text-[13px] font-medium ${mode === m.mode ? "bg-accent text-white shadow-sm" : "text-muted"}`}
             onClick={() => onModeChange(m.mode)}
           >
             {m.label}
@@ -141,12 +147,23 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
-        <Row
-          label="All items"
-          count={data.activeItems.length}
-          selected={isSel({ kind: "all" })}
-          onClick={() => onSelect({ kind: "all" })}
-        />
+        {mode !== "boxes" && (
+          <Row
+            label="All items"
+            count={data.activeItems.length}
+            selected={isSel({ kind: "all" })}
+            onClick={() => onSelect({ kind: "all" })}
+          />
+        )}
+        {mode === "boxes" && (
+          <BoxesPanel
+            data={data}
+            filterTagId={boxFilterTag}
+            onFilterTag={onBoxFilterTag}
+            selection={selection}
+            onSelect={onSelect}
+          />
+        )}
         {mode === "locations" && (
           <>
             <Row

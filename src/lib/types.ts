@@ -80,4 +80,7 @@ export type Selection =
   | { kind: "all" }
   | { kind: "location"; id: string | null }
   | { kind: "category"; id: string | null }
-  | { kind: "tag"; id: string };
+  | { kind: "tag"; id: string }
+  // Boxes tab: "all" sizes, "missing" a size tag, or one size tag's id;
+  // `location` narrows it to boxes directly in that location (null = unspecified).
+  | { kind: "boxes"; view: "all" | "missing" | (string & {}); location?: string | null };
