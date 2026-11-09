@@ -5,7 +5,7 @@ import { addTagToItems, deleteItems, moveItems } from "@/lib/data";
 import { errorMessage, formatTotals } from "@/lib/format";
 import { flattenTree, locationPath } from "@/lib/tree";
 import type { Item, Location } from "@/lib/types";
-import { BackIcon, PencilIcon, PlusIcon } from "./icons";
+import { BackIcon, PencilIcon, PlusIcon, SearchIcon } from "./icons";
 import type { InventoryData } from "./Inventory";
 import Modal from "./Modal";
 
@@ -26,6 +26,9 @@ export default function ItemList({
   onIncludeSub,
   searchArchived,
   onSearchArchived,
+  totalCount,
+  listQuery,
+  onListQuery,
   onChanged,
 }: {
   data: InventoryData;
@@ -42,6 +45,11 @@ export default function ItemList({
   onIncludeSub?: (v: boolean) => void;
   searchArchived: boolean;
   onSearchArchived?: (v: boolean) => void;
+  // Items in the view before the list's own search box filters them.
+  totalCount: number;
+  // Undefined hides the box (e.g. while the sidebar search is in use).
+  listQuery?: string;
+  onListQuery: (q: string) => void;
   onChanged: () => Promise<void> | void;
 }) {
   const [sort, setSort] = useState<SortKey>("name");
@@ -106,7 +114,7 @@ export default function ItemList({
               )}
             </h2>
             <p className="truncate text-xs text-muted">
-              {items.length} {items.length === 1 ? "item" : "items"}
+              {listQuery ? `${items.length} of ${totalCount}` : items.length} {totalCount === 1 ? "item" : "items"}
               {totals && ` · ${totals}`}
             </p>
             {location?.description && <p className="truncate text-xs text-muted">{location.description}</p>}
@@ -115,6 +123,21 @@ export default function ItemList({
             <PlusIcon />
           </button>
         </div>
+        {listQuery !== undefined && (
+          <label className="relative mt-2 block">
+            <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-muted">
+              <SearchIcon className="h-3.5 w-3.5" />
+            </span>
+            <input
+              className="input py-1.5 pl-8"
+              type="search"
+              placeholder={`Search in ${title}`}
+              aria-label={`Search in ${title}`}
+              value={listQuery}
+              onChange={(e) => onListQuery(e.target.value)}
+            />
+          </label>
+        )}
         <div className="mt-2 flex items-center gap-2 text-xs">
           <select className="rounded-md border border-line bg-panel px-2 py-1" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
             <option value="name">Name</option>
@@ -186,7 +209,11 @@ export default function ItemList({
             </li>
           );
         })}
-        {items.length === 0 && <li className="p-8 text-center text-sm text-muted">No items here yet.</li>}
+        {items.length === 0 && (
+          <li className="p-8 text-center text-sm text-muted">
+            {listQuery ? `Nothing in ${title} matches “${listQuery.trim()}”.` : "No items here yet."}
+          </li>
+        )}
       </ul>
 
       {selecting && (
