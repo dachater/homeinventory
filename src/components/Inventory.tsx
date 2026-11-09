@@ -123,9 +123,11 @@ export default function Inventory({
 
   const searching = query.trim().length > 0;
 
-  const { listItems, title } = useMemo(() => {
-    if (searching) {
-      const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // Items whose text (name, notes, location, category, tags, ...) contains every word of `q`.
+  const filterByText = useCallback(
+    (list: Item[], q: string) => {
+      const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!words.length) return list;
       const hay = (it: Item) =>
         [
           it.name,
@@ -143,11 +145,18 @@ export default function Inventory({
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
+      return list.filter((it) => {
+        const h = hay(it);
+        return words.every((w) => h.includes(w));
+      });
+    },
+    [data],
+  );
+
+  const { listItems: viewItems, title } = useMemo(() => {
+    if (searching) {
       return {
-        listItems: (searchArchived ? items : data.activeItems).filter((it) => {
-          const h = hay(it);
-          return words.every((w) => h.includes(w));
-        }),
+        listItems: filterByText(searchArchived ? items : data.activeItems, query),
         title: `Search: “${query.trim()}”`,
       };
     }
@@ -195,13 +204,21 @@ export default function Inventory({
         return { listItems: list, title: base + where + filter };
       }
     }
-  }, [searching, query, searchArchived, selection, includeSub, items, data, boxFilterTag]);
+  }, [searching, query, searchArchived, selection, includeSub, items, data, boxFilterTag, filterByText]);
+
+  // The search box above the item list narrows whatever the list is showing.
+  const [listQuery, setListQuery] = useState("");
+  const listItems = useMemo(
+    () => (searching ? viewItems : filterByText(viewItems, listQuery)),
+    [searching, filterByText, viewItems, listQuery],
+  );
 
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
 
   function select(sel: Selection) {
     setSelection(sel);
     setQuery("");
+    setListQuery("");
     setPane("list");
   }
 
@@ -261,6 +278,9 @@ export default function Inventory({
           data={data}
           title={title}
           items={listItems}
+          totalCount={viewItems.length}
+          listQuery={searching ? undefined : listQuery}
+          onListQuery={setListQuery}
           showPaths={searching || selection.kind !== "location" || (includeSub && !!currentLocation)}
           selectedId={selectedItemId}
           onOpen={openItem}

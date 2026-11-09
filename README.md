@@ -11,7 +11,8 @@ Data lives in [Supabase](https://supabase.com); the web app is hosted on [Vercel
 - **Items** with description, category, tags, quantity, value and currency per item, purchase date and store,
   brand, model, serial number, barcode and notes
 - **Photos, receipts and file attachments** per item (photos are shrunk before upload to save storage)
-- **Browse by location, category or tag**, and search across every field
+- **Browse by location, category or tag**, and search across every field: either everywhere, or only
+  within the location, tag, category or box size you're viewing (the search box above the item list)
 - **Box totals** (Boxes tab): counts boxes by their size tags, meaning any tag ending in "box", such as
   "Small box". Shows the overall total, totals per size and per location, and can filter by another tag
   (e.g. "Moving to Aster Hill"). Also flags items named like a box ("01 Carton") that have no size tag yet
