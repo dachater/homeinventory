@@ -140,7 +140,17 @@ function safeFileName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_").slice(-100) || "file";
 }
 
+// Must match the "item-files" bucket settings (see the hardening migration).
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const ALLOWED_UPLOAD = /^(image\/(jpeg|png|gif|webp|heic|heif|avif|bmp|tiff)|application\/(pdf|msword|zip|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.oasis\.opendocument\.(text|spreadsheet))|text\/(plain|csv)|video\/(mp4|quicktime))$/;
+
 export async function uploadItemFile(hid: string, itemId: string, kind: FileKind, file: File) {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error(`“${file.name}” is larger than 20 MB.`);
+  }
+  if (!ALLOWED_UPLOAD.test(file.type)) {
+    throw new Error(`“${file.name}” isn't a supported file type. Use a photo, PDF, Office document, text file, ZIP or video.`);
+  }
   const path = `${hid}/${itemId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error } = await supabase.storage
     .from(FILES_BUCKET)
