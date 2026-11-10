@@ -37,7 +37,13 @@ export default function AuthScreen() {
         setMessage({ text: "If that email has an account, a reset link is on its way." });
       }
     } catch (err) {
-      setMessage({ text: errorMessage(err), error: true });
+      const text = errorMessage(err);
+      setMessage({
+        text: /signups? not allowed/i.test(text)
+          ? "New accounts are switched off. Ask the inventory's owner to add you."
+          : text,
+        error: true,
+      });
     } finally {
       setBusy(false);
     }

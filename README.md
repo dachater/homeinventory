@@ -82,6 +82,22 @@ the app.
 
 Running the import twice creates duplicate items, so import into an empty inventory or check first.
 
+## Security
+
+- **Data access:** row level security in the database limits every table and file to members of the household.
+  Helper functions can't be called by signed-out visitors, and a household always keeps at least one owner.
+- **Uploads:** only photos, PDFs, Office or OpenDocument files, text, ZIP and MP4/MOV video, up to 20 MB each.
+  HTML and SVG files, which could run scripts, are refused.
+- **Browser protections:** the site sends a Content Security Policy and related headers (see `next.config.ts`).
+  These stop it being framed by other sites, and limit scripts and connections to the app itself and Supabase.
+- **Keep-alive:** set a `CRON_SECRET` environment variable in Vercel (any long random string) so that only
+  Vercel's daily cron can call `/api/keepalive`.
+- **Recommended Supabase settings** (Dashboard → Authentication):
+  - **Sign In / Providers:** turn off "Allow new users to sign up" once your household has joined. To add
+    someone later, use *Users → Add user*.
+  - **Email provider:** set "Minimum password length" to 8 or more.
+- **Lost phone or computer:** *Settings → Account → Sign out everywhere*.
+
 ## Local development
 
 Needs Node 20+ and, for a local database, Docker.

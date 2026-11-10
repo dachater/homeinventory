@@ -480,7 +480,20 @@ function AccountSection({ email }: { email: string }) {
         {msg && <p className="text-sm text-muted">{msg}</p>}
         {error && <p className="text-sm text-danger">{error}</p>}
       </form>
-      <button className="btn-danger" onClick={() => supabase.auth.signOut()}>Sign out</button>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-danger" onClick={() => supabase.auth.signOut()}>Sign out</button>
+        <button
+          className="btn-danger"
+          onClick={() => {
+            if (confirm("Sign out on every phone and computer where you're signed in?")) {
+              supabase.auth.signOut({ scope: "global" });
+            }
+          }}
+        >
+          Sign out everywhere
+        </button>
+      </div>
+      <p className="text-xs text-muted">Use “Sign out everywhere” if a phone or computer is lost or shared.</p>
     </div>
   );
 }
