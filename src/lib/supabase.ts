@@ -10,6 +10,8 @@ const key = (
 )?.trim();
 
 export const supabaseConfigured = Boolean(url && key);
+export const supabaseUrl = url;
+export const supabaseKey = key;
 
 // The app talks to Supabase straight from the browser; row level security in
 // the database decides what each signed-in user can see and change.

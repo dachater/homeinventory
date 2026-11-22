@@ -1,0 +1,29 @@
+# Keeps the free Supabase project from pausing, alongside the daily Vercel
+# cron (/api/keepalive). Records a heartbeat in the database twice a day.
+# The URL and publishable key are public by design: the website ships them
+# to every browser, and row level security protects the data.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "41 1,13 * * *" # 01:41 and 13:41 UTC
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://zwwqrcthvynfjgczhcsu.supabase.co
+      SUPABASE_KEY: sb_publishable_1L6qW5LlWayQHXETieoYeg_xucdNQMy
+    steps:
+      - name: Record heartbeat
+        run: |
+          curl --fail-with-body -sS --retry 3 --retry-delay 10 -X POST \
+            "$SUPABASE_URL/rest/v1/rpc/heartbeat" \
+            -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'
+          echo
+      - name: Check sign-in service
+        run: curl --fail -sS --retry 3 "$SUPABASE_URL/auth/v1/health" -H "apikey: $SUPABASE_KEY"
