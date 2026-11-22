@@ -26,4 +26,5 @@ jobs:
             -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'
           echo
       - name: Check sign-in service
-        run: curl --fail -sS --retry 3 "$SUPABASE_URL/auth/v1/health" -H "apikey: $SUPABASE_KEY"
+        run: |
+          curl --fail -sS --retry 3 "$SUPABASE_URL/auth/v1/health" -H "apikey: $SUPABASE_KEY"
