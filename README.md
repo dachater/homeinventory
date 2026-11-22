@@ -90,8 +90,14 @@ Running the import twice creates duplicate items, so import into an empty invent
   HTML and SVG files, which could run scripts, are refused.
 - **Browser protections:** the site sends a Content Security Policy and related headers (see `next.config.ts`).
   These stop it being framed by other sites, and limit scripts and connections to the app itself and Supabase.
-- **Keep-alive:** set a `CRON_SECRET` environment variable in Vercel (any long random string) so that only
-  Vercel's daily cron can call `/api/keepalive`.
+- **Keep-alive:** free Supabase projects pause after a week without enough activity. Two schedules write a
+  heartbeat to the database (`public.heartbeat()`):
+  - Vercel's daily cron, which calls `/api/keepalive`
+  - the `Supabase keep-alive` GitHub Actions workflow, twice a day
+
+  Set a `CRON_SECRET` environment variable in Vercel (any long random string) so only Vercel's cron can call
+  `/api/keepalive`. GitHub turns off scheduled workflows in public repositories after 60 days without any commits;
+  re-enable it under *Actions* if that happens.
 - **Recommended Supabase settings** (Dashboard → Authentication):
   - **Sign In / Providers:** turn off "Allow new users to sign up" once your household has joined. To add
     someone later, use *Users → Add user*.
